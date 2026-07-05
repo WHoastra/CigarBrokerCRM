@@ -1,0 +1,33 @@
+# PyInstaller build artifacts
+build/
+dist/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+
+# Build logs
+*.log
+
+# SQLite databases (user data — never commit)
+*.db
+*.db-shm
+*.db-wal
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
+
+# Claude Code build sessions
+.claude/build-log.jsonl
