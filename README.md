@@ -4,12 +4,11 @@ Desktop CRM application for cigar brokerage operations. Built with PySide6, SQLA
 
 ## Quick Start
 
-Run the pre-built executable:
-```
-dist\CigarBrokerCRM.exe
-```
+**Installer (recommended):** run `CigarBrokerCRM-Setup.exe` — installs to Program Files with Start Menu / desktop shortcuts and an uninstaller.
 
-No installation needed. The app starts empty — see the built-in Help section (Ctrl+8 or F1) for a getting-started walkthrough.
+**Portable:** just run `dist\CigarBrokerCRM.exe` directly.
+
+Either way the app starts empty — see the built-in Help section (Ctrl+8 or F1) for a getting-started walkthrough. All data lives in `Documents\CigarBrokerCRM`.
 
 ## Features
 
@@ -44,7 +43,7 @@ No installation needed. The app starts empty — see the built-in Help section (
 
 ## Data Storage
 
-All data is stored locally in `~/.cigarbrokercrm/cigarbroker.db` (SQLite) and persists between launches. Use File > Backup Database to create backups and File > Restore Database to load one.
+All data is stored locally in `Documents\CigarBrokerCRM\cigarbroker.db` (SQLite) and persists between launches. Use File > Backup Database to create backups and File > Restore Database to load one. (Upgrading from an older version? Data in the old `~/.cigarbrokercrm` folder is migrated to Documents automatically on first launch.)
 
 **Moving to a new computer:** copy `CigarBrokerCRM.exe` over, then on the old machine do Settings > Export Config and File > Backup Database; on the new machine do Settings > Import Config and File > Restore Database.
 
@@ -70,3 +69,10 @@ pyinstaller cigarbrokercrm.spec --clean
 ```
 
 Output: `dist/CigarBrokerCRM.exe`
+
+### Build installer (needs Inno Setup 6)
+```
+ISCC.exe installer.iss
+```
+
+Output: `installer/CigarBrokerCRM-Setup.exe`

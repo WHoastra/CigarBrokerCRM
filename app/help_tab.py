@@ -59,13 +59,13 @@ If a company's commission % isn't set, its net reports as $0 — set it in Compa
 
 <h2 style="color:{GOLD};">Saving &amp; moving your setup</h2>
 <p><b>File &gt; Save Config (Ctrl+S)</b> — instantly overwrites your config file, no dialog.
-By default it lives at <code>~/.cigarbrokercrm/cigarbrokercrm-config.json</code>; if you've
-used <b>Settings &gt; Export / Import Config</b>, Save targets that file instead.</p>
+By default it lives at <code>Documents\\CigarBrokerCRM\\cigarbrokercrm-config.json</code>;
+if you've used <b>Settings &gt; Export / Import Config</b>, Save targets that file instead.</p>
 <p><b>File &gt; Backup Database (Ctrl+B)</b> — copies your whole database (clients, orders,
 everything) to a file. <b>File &gt; Restore Database</b> loads one back.</p>
 <p><b>Moving to a new computer:</b> on the old machine, Save Config + Backup Database.
 On the new one, run the exe, Import Config, Restore Database. Done.</p>
-<p>Your data lives in <code>~/.cigarbrokercrm/cigarbroker.db</code> and is saved
+<p>Your data lives in <code>Documents\\CigarBrokerCRM\\cigarbroker.db</code> and is saved
 automatically the moment you click Save on anything — closing the app never loses data.</p>
 
 <h2 style="color:{GOLD};">Keyboard shortcuts</h2>

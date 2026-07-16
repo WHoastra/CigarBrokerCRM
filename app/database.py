@@ -1,5 +1,6 @@
 """Database models and session management for CigarBrokerCRM."""
 
+import glob
 import os
 import shutil
 from datetime import datetime, date
@@ -12,8 +13,44 @@ from sqlalchemy.orm import declarative_base, relationship, sessionmaker, Session
 
 Base = declarative_base()
 
-DB_DIR = os.path.join(os.path.expanduser("~"), ".cigarbrokercrm")
+
+def _documents_dir():
+    """The user's real Documents folder (handles OneDrive redirection);
+    falls back to ~/Documents if Qt can't resolve it."""
+    try:
+        from PySide6.QtCore import QStandardPaths
+        d = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
+        if d:
+            return os.path.normpath(d)
+    except ImportError:
+        pass
+    return os.path.join(os.path.expanduser("~"), "Documents")
+
+
+# All app data (database, config, logo, reports) lives in Documents so users
+# can find and back it up. OLD_DB_DIR is the pre-1.3 hidden home-dir location,
+# migrated from automatically on startup.
+DB_DIR = os.path.join(_documents_dir(), "CigarBrokerCRM")
+OLD_DB_DIR = os.path.join(os.path.expanduser("~"), ".cigarbrokercrm")
 DB_PATH = os.path.join(DB_DIR, "cigarbroker.db")
+
+
+def _migrate_data_dir():
+    """One-time move from ~/.cigarbrokercrm to Documents\\CigarBrokerCRM:
+    copies the database, logo, config file, and reports folder. The old
+    folder is left in place as a safety net. Skipped once the new database
+    exists (or there's nothing to migrate)."""
+    old_db = os.path.join(OLD_DB_DIR, "cigarbroker.db")
+    if os.path.isfile(DB_PATH) or not os.path.isfile(old_db):
+        return
+    os.makedirs(DB_DIR, exist_ok=True)
+    shutil.copy2(old_db, DB_PATH)
+    for pattern in ("logo.*", "*config*.json"):
+        for f in glob.glob(os.path.join(OLD_DB_DIR, pattern)):
+            shutil.copy2(f, os.path.join(DB_DIR, os.path.basename(f)))
+    old_reports = os.path.join(OLD_DB_DIR, "reports")
+    if os.path.isdir(old_reports):
+        shutil.copytree(old_reports, os.path.join(DB_DIR, "reports"), dirs_exist_ok=True)
 
 
 class Client(Base):
@@ -210,11 +247,24 @@ class Communication(Base):
 
 class DatabaseManager:
     def __init__(self):
+        _migrate_data_dir()
         os.makedirs(DB_DIR, exist_ok=True)
         self.engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
         Base.metadata.create_all(self.engine)
         self._migrate()
         self._Session = sessionmaker(bind=self.engine)
+        self._fix_moved_paths()
+
+    def _fix_moved_paths(self):
+        """Stored absolute paths (logo, reports folder, config file) written
+        before the data folder moved to Documents still point at the old
+        location — rewrite them to the new one."""
+        old = os.path.normcase(OLD_DB_DIR)
+        for key in ("company.logo", "reports.dir", "config.path"):
+            val = self.get_setting(key)
+            if val and os.path.normcase(os.path.normpath(val)).startswith(old):
+                rel = os.path.relpath(os.path.normpath(val), OLD_DB_DIR)
+                self.set_setting(key, os.path.normpath(os.path.join(DB_DIR, rel)))
 
     def _migrate(self):
         """Add columns that create_all() can't: it creates missing TABLES but
