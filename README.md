@@ -4,11 +4,9 @@ Desktop CRM application for cigar brokerage operations. Built with PySide6, SQLA
 
 ## Quick Start
 
-**Installer (recommended):** run `CigarBrokerCRM-Setup.exe` — installs to Program Files with Start Menu / desktop shortcuts and an uninstaller.
+Run `CigarBrokerCRM-Setup.exe` (grab it from the [latest release](https://github.com/WHoastra/CigarBrokerCRM/releases)) — installs to Program Files with a Start Menu entry, optional desktop shortcut, and an uninstaller.
 
-**Portable:** just run `dist\CigarBrokerCRM.exe` directly.
-
-Either way the app starts empty — see the built-in Help section (Ctrl+8 or F1) for a getting-started walkthrough. All data lives in `Documents\CigarBrokerCRM`.
+The app starts empty — see the built-in Help section (Ctrl+8 or F1) for a getting-started walkthrough. All data lives in `Documents\CigarBrokerCRM`.
 
 ## Features
 
