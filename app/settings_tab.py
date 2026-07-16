@@ -106,6 +106,22 @@ class SettingsTab(QWidget):
         iform.addRow("Reports folder", folder_row)
         layout.addWidget(invoice_group)
 
+        # --- Config transfer (move your setup to another computer) ---
+        config_group = QGroupBox("Config File — move your setup to another computer")
+        cfg_row = QHBoxLayout(config_group)
+        cfg_hint = QLabel("Everything on this page (logo included) in one portable file.\n"
+                          "For the data itself, use File > Backup / Restore Database.")
+        cfg_hint.setStyleSheet("color: #888; font-weight: normal;")
+        cfg_row.addWidget(cfg_hint)
+        cfg_row.addStretch()
+        export_btn = QPushButton("Export Config…")
+        export_btn.clicked.connect(self.export_config)
+        cfg_row.addWidget(export_btn)
+        import_btn = QPushButton("Import Config…")
+        import_btn.clicked.connect(self.import_config)
+        cfg_row.addWidget(import_btn)
+        layout.addWidget(config_group)
+
         self.status = QLabel("")
         self.status.setStyleSheet("color: #888;")
         layout.addWidget(self.status)
@@ -172,6 +188,34 @@ class SettingsTab(QWidget):
                                                 self.reports_dir.text() or DB_DIR)
         if path:
             self.reports_dir.setText(path)
+
+    def export_config(self):
+        self.save()  # capture what's on screen first, so the file matches it
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export Config", "cigarbrokercrm-config.json", "Config Files (*.json)")
+        if not path:
+            return
+        try:
+            self.db.export_config(path)
+            self.status.setText(f"✓ Config exported to {path}")
+        except OSError as e:
+            self.status.setText(f"Export failed: {e}")
+
+    def import_config(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import Config", "", "Config Files (*.json)")
+        if not path:
+            return
+        try:
+            count = self.db.import_config(path)
+        except (OSError, ValueError, KeyError) as e:
+            self.status.setText(f"Import failed: {e}")
+            return
+        self.load()
+        win = self.window()
+        if hasattr(win, "apply_branding"):
+            win.apply_branding()
+        self.status.setText(f"✓ Imported {count} settings from {os.path.basename(path)}")
 
     def save(self):
         self.db.set_setting("company.name", self.name.text().strip())

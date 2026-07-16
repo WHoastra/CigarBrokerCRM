@@ -463,7 +463,7 @@ class OrdersTab(QWidget):
             self.paid_btn.setText("Mark Unpaid" if order.is_paid else "✔ Mark Paid")
             self.items_table.setRowCount(len(order.items))
             for row, item in enumerate(order.items):
-                self.items_table.setItem(row, 0, QTableWidgetItem(item.product.display_name if item.product else "?"))
+                self.items_table.setItem(row, 0, QTableWidgetItem(item.product.display_name if item.product else "(deleted product)"))
                 self.items_table.setItem(row, 1, QTableWidgetItem(item.product.sku if item.product else ""))
                 self.items_table.setItem(row, 2, QTableWidgetItem(str(item.quantity)))
                 self.items_table.setItem(row, 3, QTableWidgetItem(f"${item.unit_price:,.2f}"))
@@ -610,7 +610,7 @@ class OrdersTab(QWidget):
                 },
                 "items": [
                     {
-                        "name": i.product.display_name if i.product else "?",
+                        "name": i.product.display_name if i.product else "(deleted product)",
                         "sku": i.product.sku if i.product else "",
                         "qty": i.quantity,
                         "unit": i.unit_price,

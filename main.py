@@ -227,8 +227,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.db = DatabaseManager()
 
-        # Seed sample data on first run
-        if not self.db.has_data():
+        # Seed sample data on a truly fresh install only — a deliberately
+        # emptied database stays empty on the next launch.
+        if self.db.needs_seed():
             self.db.seed_sample_data()
 
         self.setWindowTitle(self.db.app_title())
@@ -260,6 +261,10 @@ class MainWindow(QMainWindow):
         backup_action.setShortcut(QKeySequence("Ctrl+B"))
         backup_action.triggered.connect(self.backup_db)
         file_menu.addAction(backup_action)
+
+        restore_action = QAction("&Restore Database…", self)
+        restore_action.triggered.connect(self.restore_db)
+        file_menu.addAction(restore_action)
 
         file_menu.addSeparator()
 
@@ -360,6 +365,37 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Backup", f"Database backed up to:\n{dest}")
             except Exception as e:
                 QMessageBox.critical(self, "Backup Error", str(e))
+
+    def restore_db(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Restore Database", "", "SQLite Database (*.db)")
+        if not path:
+            return
+        if QMessageBox.warning(
+                self, "Restore Database",
+                "This REPLACES all current data with the backup.\n"
+                "Back up the current database first (Ctrl+B) if you might want it back.\n\n"
+                "Continue?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
+            return
+        try:
+            self.db.restore(path)
+        except Exception as e:
+            QMessageBox.critical(self, "Restore Error", str(e))
+            return
+        self.refresh_all()
+        QMessageBox.information(self, "Restore", "Database restored — all sections reloaded.")
+
+    def refresh_all(self):
+        """Reload every section from the database (after a restore or import)."""
+        self.clients_tab.load_clients()
+        self.companies_tab.load_companies()
+        self.orders_tab.load_orders()
+        self.calendar_tab.refresh()
+        self.reports_tab.on_report_changed()
+        self.settings_tab.load()
+        self.dashboard.refresh()
+        self.apply_branding()
 
     def show_about(self):
         title = self.db.app_title()

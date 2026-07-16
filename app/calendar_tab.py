@@ -2,7 +2,7 @@
 follow-ups) plus a read-only overlay of order dates. The same date-formatting
 helper drives the dashboard's mini calendar."""
 
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QCalendarWidget, QTableWidget,
@@ -20,11 +20,14 @@ from app.theme import GOLD
 
 EVENT_KINDS = ["Meeting", "Call", "Delivery", "Follow-up", "Other"]
 ORDER_BLUE = "#4aa3c9"
+COMM_PURPLE = "#9c6bd4"
 
 
 def apply_month_formats(calendar: QCalendarWidget, db: DatabaseManager):
-    """Highlight dates that hold events (gold, bold) or orders (blue) for the
-    calendar's currently visible month ±1 (so edges of the grid show too)."""
+    """Highlight dates that hold events (gold, bold), orders (blue), or
+    communication-log entries (purple) for the calendar's currently visible
+    month ±1 (so edges of the grid show too). Precedence when a day has
+    several kinds: events > orders > log entries."""
     calendar.setDateTextFormat(QDate(), QTextCharFormat())  # clear all custom formats
 
     shown = date(calendar.yearShown(), calendar.monthShown(), 1)
@@ -41,8 +44,17 @@ def apply_month_formats(calendar: QCalendarWidget, db: DatabaseManager):
                        .filter(Event.date >= start, Event.date <= end).all()}
         order_dates = {o.order_date for o in session.query(Order)
                        .filter(Order.order_date >= start, Order.order_date <= end).all()}
+        comm_dates = {c.timestamp.date() for c in session.query(Communication)
+                      .filter(Communication.timestamp >= datetime(start.year, start.month, start.day),
+                              Communication.timestamp < datetime(end.year, end.month, end.day)
+                              + timedelta(days=1)).all()}
     finally:
         session.close()
+
+    comm_fmt = QTextCharFormat()
+    comm_fmt.setForeground(QColor(COMM_PURPLE))
+    for d in comm_dates:
+        calendar.setDateTextFormat(QDate(d.year, d.month, d.day), comm_fmt)
 
     order_fmt = QTextCharFormat()
     order_fmt.setForeground(QColor(ORDER_BLUE))
@@ -164,7 +176,8 @@ class CalendarTab(QWidget):
         title.setObjectName("sectionHeader")
         header.addWidget(title)
         legend = QLabel(f'<span style="color:{GOLD};">■</span> events&nbsp;&nbsp;'
-                        f'<span style="color:{ORDER_BLUE};">■</span> orders')
+                        f'<span style="color:{ORDER_BLUE};">■</span> orders&nbsp;&nbsp;'
+                        f'<span style="color:{COMM_PURPLE};">■</span> log entries')
         legend.setStyleSheet("color: #888;")
         header.addWidget(legend)
         header.addStretch()

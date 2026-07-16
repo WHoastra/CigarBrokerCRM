@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QShortcut, QKeySequence
 
-from app.database import DatabaseManager, Company, Product, Communication
+from app.database import DatabaseManager, Company, Product, Communication, OrderItem
 from app.clients_tab import CommDialog
 
 
@@ -515,18 +515,35 @@ class CompaniesTab(QWidget):
     def delete_company(self):
         if not self.current_company_id:
             return
-        reply = QMessageBox.question(
-            self, "Delete Company",
-            "Delete this company and all its products?",
-            QMessageBox.Yes | QMessageBox.No
-        )
+        session = self.db.session()
+        try:
+            n_lines = (session.query(OrderItem).join(Product)
+                       .filter(Product.company_id == self.current_company_id).count())
+        finally:
+            session.close()
+        msg = "Delete this company, its products, and contacts?"
+        if n_lines:
+            msg += (f"\n\nIts products appear on {n_lines} order line(s). "
+                    "Order history and totals are kept — those lines will "
+                    "show '(deleted product)'.")
+        reply = QMessageBox.question(self, "Delete Company", msg,
+                                     QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
             session = self.db.session()
             try:
+                # Unhook order lines from this company's products so order
+                # history (qty, price, totals) survives the delete.
+                lines = (session.query(OrderItem).join(Product)
+                         .filter(Product.company_id == self.current_company_id).all())
+                for line in lines:
+                    line.product_id = None
                 c = session.query(Company).get(self.current_company_id)
                 if c:
                     session.delete(c)
-                    session.commit()
+                session.commit()
+            except Exception:
+                session.rollback()
+                raise
             finally:
                 session.close()
             self.current_company_id = None

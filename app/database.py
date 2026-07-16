@@ -135,7 +135,9 @@ class OrderItem(Base):
 
     id = Column(Integer, primary_key=True)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    # Nullable: deleting a company (and its products) keeps order history —
+    # the line's qty/price/total stay, the product reference is cleared.
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     quantity = Column(Integer, default=1)
     unit_price = Column(Float, default=0.0)
     line_total = Column(Float, default=0.0)
@@ -260,6 +262,24 @@ class DatabaseManager:
                 conn.execute(text("DROP TABLE communications_old"))
                 conn.commit()
 
+        # order_items.product_id was originally NOT NULL. Deleting a company
+        # (and its products) now keeps order history by clearing the product
+        # reference, so drop the constraint by rebuilding — only on an OLD db
+        # that still has it (a fresh create_all db is already nullable).
+        with self.engine.connect() as conn:
+            info = list(conn.execute(text("PRAGMA table_info(order_items)")))
+            prod_col = next((r for r in info if r[1] == "product_id"), None)
+            if prod_col and prod_col[3] == 1:  # notnull flag still set
+                conn.execute(text("ALTER TABLE order_items RENAME TO order_items_old"))
+                conn.commit()
+                Base.metadata.tables["order_items"].create(conn)
+                conn.execute(text(
+                    "INSERT INTO order_items (id, order_id, product_id, quantity, unit_price, line_total) "
+                    "SELECT id, order_id, product_id, quantity, unit_price, line_total FROM order_items_old"
+                ))
+                conn.execute(text("DROP TABLE order_items_old"))
+                conn.commit()
+
     def session(self) -> Session:
         return self._Session()
 
@@ -321,9 +341,84 @@ class DatabaseManager:
         shutil.copy2(DB_PATH, dest_path)
         return dest_path
 
+    def restore(self, src_path: str):
+        """Replace the live database with a backup .db (e.g. when moving to a
+        new computer). Verifies the file looks like ours before overwriting."""
+        probe = create_engine(f"sqlite:///{src_path}")
+        try:
+            with probe.connect() as conn:
+                names = {r[0] for r in conn.execute(text(
+                    "SELECT name FROM sqlite_master WHERE type='table'"))}
+        finally:
+            probe.dispose()
+        if "clients" not in names or "orders" not in names:
+            raise ValueError("That file isn't a CigarBrokerCRM database backup.")
+        self.engine.dispose()
+        shutil.copy2(src_path, DB_PATH)
+        self.engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
+        Base.metadata.create_all(self.engine)
+        self._migrate()  # the backup may predate newer columns
+        self._Session = sessionmaker(bind=self.engine)
+
+    # ---- config export / import (move your setup between computers) ----
+
+    def export_config(self, path: str):
+        """Write every setting — plus the logo image, embedded as base64 — to
+        one portable JSON file that import_config loads on another machine."""
+        import base64
+        import json
+        with self.session() as s:
+            settings = {r.key: r.value or "" for r in s.query(Setting).all()}
+        logo = None
+        logo_path = settings.pop("company.logo", "")  # machine-specific path; logo travels as bytes
+        if logo_path and os.path.isfile(logo_path):
+            with open(logo_path, "rb") as f:
+                logo = {"ext": os.path.splitext(logo_path)[1].lower() or ".png",
+                        "base64": base64.b64encode(f.read()).decode("ascii")}
+        payload = {"app": "CigarBrokerCRM", "kind": "config", "version": 1,
+                   "settings": settings, "logo": logo}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+
+    def import_config(self, path: str) -> int:
+        """Load a config file written by export_config; returns how many
+        settings were applied. Paths that don't exist here are dropped."""
+        import base64
+        import json
+        with open(path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        if payload.get("app") != "CigarBrokerCRM" or payload.get("kind") != "config":
+            raise ValueError("Not a CigarBrokerCRM config file.")
+        settings = dict(payload.get("settings") or {})
+        # A reports folder from another machine may not exist on this one.
+        rd = settings.get("reports.dir", "")
+        if rd and not os.path.isdir(rd):
+            settings["reports.dir"] = ""
+        logo = payload.get("logo")
+        if logo and logo.get("base64"):
+            dest = os.path.join(DB_DIR, "logo" + (logo.get("ext") or ".png"))
+            with open(dest, "wb") as f:
+                f.write(base64.b64decode(logo["base64"]))
+            settings["company.logo"] = dest
+        for key, value in settings.items():
+            self.set_setting(key, str(value))
+        return len(settings)
+
     def has_data(self) -> bool:
         with self.session() as s:
             return s.query(Client).count() > 0
+
+    def needs_seed(self) -> bool:
+        """Sample data goes in exactly once, on a truly fresh install. The
+        app.seeded flag (not row counts) decides — deleting every client must
+        NOT bring the samples back on the next launch."""
+        if self.get_setting("app.seeded") == "1":
+            return False
+        if self.has_data():
+            # Existing install that predates the flag: mark it, don't reseed.
+            self.set_setting("app.seeded", "1")
+            return False
+        return True
 
     def seed_sample_data(self):
         s = self.session()
@@ -452,3 +547,4 @@ class DatabaseManager:
             raise
         finally:
             s.close()
+        self.set_setting("app.seeded", "1")
