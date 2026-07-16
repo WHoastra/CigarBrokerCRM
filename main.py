@@ -50,7 +50,7 @@ class DashboardTab(QWidget):
         subtitle.setStyleSheet("font-size: 13px; color: #888;")
         head.addWidget(subtitle)
         head.addStretch()
-        tips = QLabel("Ctrl+1-7 sections · Ctrl+N new · Ctrl+F search · Ctrl+B backup")
+        tips = QLabel("Ctrl+1-8 sections · Ctrl+N new · Ctrl+F search · Ctrl+S save config · Ctrl+B backup")
         tips.setStyleSheet("font-size: 11px; color: #666;")
         head.addWidget(tips)
         layout.addLayout(head)
@@ -227,11 +227,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.db = DatabaseManager()
 
-        # Seed sample data on a truly fresh install only — a deliberately
-        # emptied database stays empty on the next launch.
-        if self.db.needs_seed():
-            self.db.seed_sample_data()
-
+        # First launch starts completely empty — no sample data.
         self.setWindowTitle(self.db.app_title())
         self.setMinimumSize(1200, 750)
         self.resize(1400, 850)
@@ -248,7 +244,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, "dashboard"):
             self.dashboard.title_label.setText(title)
         cur = self.sidebar.currentRow()
-        names = ["Dashboard", "Clients", "Companies", "Orders", "Calendar", "Reports", "Settings"]
+        names = ["Dashboard", "Clients", "Companies", "Orders", "Calendar", "Reports", "Settings", "Help"]
         if 0 <= cur < len(names):
             self.statusBar().showMessage(f"{names[cur]} — {title}")
 
@@ -256,6 +252,13 @@ class MainWindow(QMainWindow):
         menu = self.menuBar()
 
         file_menu = menu.addMenu("&File")
+
+        save_action = QAction("&Save Config", self)
+        save_action.setShortcut(QKeySequence("Ctrl+S"))
+        save_action.triggered.connect(self.save_config)
+        file_menu.addAction(save_action)
+
+        file_menu.addSeparator()
 
         backup_action = QAction("&Backup Database", self)
         backup_action.setShortcut(QKeySequence("Ctrl+B"))
@@ -274,6 +277,10 @@ class MainWindow(QMainWindow):
         file_menu.addAction(exit_action)
 
         help_menu = menu.addMenu("&Help")
+        guide_action = QAction("&User Guide", self)
+        guide_action.setShortcut(QKeySequence("F1"))
+        guide_action.triggered.connect(lambda: self.sidebar.setCurrentRow(7))
+        help_menu.addAction(guide_action)
         about_action = QAction("&About", self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
@@ -299,6 +306,7 @@ class MainWindow(QMainWindow):
             ("  Calendar", "Events, meetings, deliveries"),
             ("  Reports", "Reports"),
             ("  Settings", "Your company info & invoicing"),
+            ("  Help", "User guide — Whoastra Labs LLC"),
         ]
         for text, tooltip in sections:
             item = QListWidgetItem(text)
@@ -334,10 +342,14 @@ class MainWindow(QMainWindow):
         self.settings_tab = SettingsTab(self.db)
         self.stack.addWidget(self.settings_tab)
 
+        from app.help_tab import HelpTab
+        self.help_tab = HelpTab()
+        self.stack.addWidget(self.help_tab)
+
         main_layout.addWidget(self.stack)
 
     def setup_shortcuts(self):
-        for i in range(7):
+        for i in range(8):
             QShortcut(QKeySequence(f"Ctrl+{i+1}"), self, lambda idx=i: self.sidebar.setCurrentRow(idx))
 
     def setup_statusbar(self):
@@ -351,7 +363,7 @@ class MainWindow(QMainWindow):
             self.calendar_tab.refresh()  # pick up orders/events added elsewhere
         elif index == 6:
             self.settings_tab.load()  # re-read in case another path changed settings
-        names = ["Dashboard", "Clients", "Companies", "Orders", "Calendar", "Reports", "Settings"]
+        names = ["Dashboard", "Clients", "Companies", "Orders", "Calendar", "Reports", "Settings", "Help"]
         if 0 <= index < len(names):
             self.statusBar().showMessage(f"{names[index]} — {self.db.app_title()}")
 
@@ -365,6 +377,22 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Backup", f"Database backed up to:\n{dest}")
             except Exception as e:
                 QMessageBox.critical(self, "Backup Error", str(e))
+
+    def save_config(self):
+        """Save all settings over the latest config file (the one last saved,
+        exported, or imported). Asks for a location only the first time."""
+        path = self.db.get_setting("config.path")
+        if not path:
+            path, _ = QFileDialog.getSaveFileName(
+                self, "Save Config", "cigarbrokercrm-config.json", "Config Files (*.json)")
+            if not path:
+                return
+        try:
+            self.db.export_config(path)
+            self.db.set_setting("config.path", path)
+            self.statusBar().showMessage(f"Config saved to {path}", 6000)
+        except OSError as e:
+            QMessageBox.critical(self, "Save Config", str(e))
 
     def restore_db(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -404,6 +432,7 @@ class MainWindow(QMainWindow):
             f"<h2 style='color:#c9a84c;'>{title}</h2>"
             "<p>Desktop CRM for cigar brokerage operations.</p>"
             "<p>Manage clients, companies, orders, and generate reports.</p>"
+            "<p style='color:#c9a84c;'><b>Whoastra Labs LLC</b></p>"
             "<p style='color:#888;'>Built with PySide6 + SQLAlchemy</p>"
             "<p style='color:#888;'>Data stored locally in SQLite.</p>"
         )

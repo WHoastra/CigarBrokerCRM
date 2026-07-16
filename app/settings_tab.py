@@ -197,6 +197,7 @@ class SettingsTab(QWidget):
             return
         try:
             self.db.export_config(path)
+            self.db.set_setting("config.path", path)  # File > Save targets this now
             self.status.setText(f"✓ Config exported to {path}")
         except OSError as e:
             self.status.setText(f"Export failed: {e}")
@@ -208,6 +209,7 @@ class SettingsTab(QWidget):
             return
         try:
             count = self.db.import_config(path)
+            self.db.set_setting("config.path", path)  # File > Save targets this now
         except (OSError, ValueError, KeyError) as e:
             self.status.setText(f"Import failed: {e}")
             return

@@ -9,7 +9,7 @@ Run the pre-built executable:
 dist\CigarBrokerCRM.exe
 ```
 
-No installation needed. Sample data is created on first launch.
+No installation needed. The app starts empty — see the built-in Help section (Ctrl+8 or F1) for a getting-started walkthrough.
 
 ## Features
 
@@ -25,17 +25,20 @@ No installation needed. Sample data is created on first launch.
 - **Reports** — Plus sales by client, top products, top companies, revenue over time, aging receivables, order status summary. Charts + CSV export.
 - **Dashboard** — Command center: money cards (unpaid invoices, gross/net YTD), gross-vs-net trend chart, order-status donut, mini calendar, next-7-days agenda.
 - **Settings** — Company letterhead + license #, tax rate, invoice footer, reports folder.
-- **Config transfer** — Settings > Export/Import Config: your whole setup (logo included) in one portable JSON file for moving to another computer.
+- **Config transfer** — File > Save Config (Ctrl+S) overwrites your latest config file; Settings > Export/Import Config for explicit file choices. Your whole setup (logo included) in one portable JSON file for moving to another computer.
+- **Help** — Built-in user guide (Ctrl+8 / F1) covering every section, the money math, and machine moves. By Whoastra Labs LLC.
 - **Backup / Restore** — File > Backup Database (Ctrl+B) and File > Restore Database to move or recover your data.
 
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| Ctrl+1-7 | Switch sections |
+| Ctrl+1-8 | Switch sections |
 | Ctrl+N | New item |
 | Ctrl+F | Focus search |
+| Ctrl+S | Save config |
 | Ctrl+B | Backup database |
+| F1 | Help / user guide |
 | Ctrl+Q | Quit |
 | Delete | Delete selected |
 

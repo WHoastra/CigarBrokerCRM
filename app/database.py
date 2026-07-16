@@ -2,9 +2,7 @@
 
 import os
 import shutil
-from datetime import datetime, date, timedelta
-from decimal import Decimal
-import random
+from datetime import datetime, date
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Text, Float,
@@ -69,7 +67,7 @@ class Company(Base):
     notes = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.now)
     # The broker's cut of sales of THIS company's products, as a percent.
-    # Net earnings on reports = line totals × this rate.
+    # Net earnings on reports = line totals Ã— this rate.
     commission_pct = Column(Float, default=0.0)
 
     products = relationship("Product", back_populates="company", cascade="all, delete-orphan")
@@ -135,7 +133,7 @@ class OrderItem(Base):
 
     id = Column(Integer, primary_key=True)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
-    # Nullable: deleting a company (and its products) keeps order history —
+    # Nullable: deleting a company (and its products) keeps order history â€”
     # the line's qty/price/total stay, the product reference is cleared.
     product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     quantity = Column(Integer, default=1)
@@ -147,8 +145,8 @@ class OrderItem(Base):
 
 
 class Contact(Base):
-    """A person at a client OR a company — one of the two FKs is set. Clients
-    and companies can carry any number of these (buyer, assistant, rep…);
+    """A person at a client OR a company â€” one of the two FKs is set. Clients
+    and companies can carry any number of these (buyer, assistant, repâ€¦);
     the legacy single email/phone/contact_name fields remain the 'main line'."""
     __tablename__ = "contacts"
 
@@ -221,7 +219,7 @@ class DatabaseManager:
     def _migrate(self):
         """Add columns that create_all() can't: it creates missing TABLES but
         never alters existing ones, and users already have live databases.
-        Idempotent — checks PRAGMA table_info before each ALTER."""
+        Idempotent â€” checks PRAGMA table_info before each ALTER."""
         new_columns = {
             "orders": [
                 ("invoice_number", "VARCHAR(50) DEFAULT ''"),
@@ -246,7 +244,7 @@ class DatabaseManager:
 
         # communications.client_id was originally NOT NULL (client-only comms).
         # Company comms leave it NULL, so drop the constraint by rebuilding the
-        # table — but only on an OLD db that still has the constraint. A fresh
+        # table â€” but only on an OLD db that still has the constraint. A fresh
         # db from create_all already has the nullable column, so this is skipped.
         with self.engine.connect() as conn:
             info = list(conn.execute(text("PRAGMA table_info(communications)")))
@@ -264,7 +262,7 @@ class DatabaseManager:
 
         # order_items.product_id was originally NOT NULL. Deleting a company
         # (and its products) now keeps order history by clearing the product
-        # reference, so drop the constraint by rebuilding — only on an OLD db
+        # reference, so drop the constraint by rebuilding â€” only on an OLD db
         # that still has it (a fresh create_all db is already nullable).
         with self.engine.connect() as conn:
             info = list(conn.execute(text("PRAGMA table_info(order_items)")))
@@ -363,13 +361,14 @@ class DatabaseManager:
     # ---- config export / import (move your setup between computers) ----
 
     def export_config(self, path: str):
-        """Write every setting — plus the logo image, embedded as base64 — to
+        """Write every setting â€” plus the logo image, embedded as base64 â€” to
         one portable JSON file that import_config loads on another machine."""
         import base64
         import json
         with self.session() as s:
             settings = {r.key: r.value or "" for r in s.query(Setting).all()}
         logo = None
+        settings.pop("config.path", None)  # machine-specific; the importer sets its own
         logo_path = settings.pop("company.logo", "")  # machine-specific path; logo travels as bytes
         if logo_path and os.path.isfile(logo_path):
             with open(logo_path, "rb") as f:
@@ -403,148 +402,3 @@ class DatabaseManager:
         for key, value in settings.items():
             self.set_setting(key, str(value))
         return len(settings)
-
-    def has_data(self) -> bool:
-        with self.session() as s:
-            return s.query(Client).count() > 0
-
-    def needs_seed(self) -> bool:
-        """Sample data goes in exactly once, on a truly fresh install. The
-        app.seeded flag (not row counts) decides — deleting every client must
-        NOT bring the samples back on the next launch."""
-        if self.get_setting("app.seeded") == "1":
-            return False
-        if self.has_data():
-            # Existing install that predates the flag: mark it, don't reseed.
-            self.set_setting("app.seeded", "1")
-            return False
-        return True
-
-    def seed_sample_data(self):
-        s = self.session()
-        try:
-            # Companies
-            companies_data = [
-                {"name": "Arturo Fuente", "contact_name": "Carlos Fuente Jr.", "email": "sales@arturofuente.com", "phone": "813-555-0101", "address": "Tampa, FL", "website": "arturofuente.com"},
-                {"name": "Padron Cigars", "contact_name": "Jorge Padron", "email": "orders@padron.com", "phone": "305-555-0202", "address": "Miami, FL", "website": "padron.com"},
-                {"name": "Oliva Cigar Co.", "contact_name": "Fred Vandermarliere", "email": "sales@oliva.com", "phone": "305-555-0303", "address": "Miami, FL", "website": "olivacigar.com"},
-                {"name": "Drew Estate", "contact_name": "Jonathan Drew", "email": "info@drewestate.com", "phone": "305-555-0404", "address": "Miami, FL", "website": "drewestate.com"},
-                {"name": "My Father Cigars", "contact_name": "Jaime Garcia", "email": "sales@myfathercigars.com", "phone": "305-555-0505", "address": "Doral, FL", "website": "myfathercigars.com"},
-            ]
-            companies = []
-            for cd in companies_data:
-                c = Company(**cd)
-                s.add(c)
-                companies.append(c)
-            s.flush()
-
-            # Products
-            products_data = [
-                # Arturo Fuente
-                {"company": companies[0], "brand": "Arturo Fuente", "line": "Hemingway", "sku": "AF-HEM-001", "size": "6x52 Toro", "wrapper": "Cameroon", "strength": "Medium", "price": 14.50, "availability": "In Stock"},
-                {"company": companies[0], "brand": "Arturo Fuente", "line": "Don Carlos", "sku": "AF-DC-001", "size": "5.5x44 Corona", "wrapper": "Cameroon", "strength": "Medium-Full", "price": 18.00, "availability": "Limited"},
-                {"company": companies[0], "brand": "Arturo Fuente", "line": "OpusX", "sku": "AF-OX-001", "size": "6.25x52 Belicoso", "wrapper": "Rosado", "strength": "Full", "price": 35.00, "availability": "Allocated"},
-                # Padron
-                {"company": companies[1], "brand": "Padron", "line": "1964 Anniversary", "sku": "PAD-64-001", "size": "6.5x52 Torpedo", "wrapper": "Maduro", "strength": "Full", "price": 22.00, "availability": "In Stock"},
-                {"company": companies[1], "brand": "Padron", "line": "1926 Serie", "sku": "PAD-26-001", "size": "5.5x52 No. 35", "wrapper": "Natural", "strength": "Full", "price": 28.00, "availability": "In Stock"},
-                {"company": companies[1], "brand": "Padron", "line": "Damaso", "sku": "PAD-DAM-001", "size": "6x52 Toro", "wrapper": "Connecticut", "strength": "Mild-Medium", "price": 16.00, "availability": "In Stock"},
-                # Oliva
-                {"company": companies[2], "brand": "Oliva", "line": "Serie V Melanio", "sku": "OLI-VM-001", "size": "6x52 Toro", "wrapper": "Habano", "strength": "Full", "price": 15.00, "availability": "In Stock"},
-                {"company": companies[2], "brand": "Oliva", "line": "Serie G", "sku": "OLI-SG-001", "size": "6x50 Toro", "wrapper": "Cameroon", "strength": "Medium", "price": 8.50, "availability": "In Stock"},
-                # Drew Estate
-                {"company": companies[3], "brand": "Liga Privada", "line": "No. 9", "sku": "DE-LP9-001", "size": "6x52 Toro", "wrapper": "Connecticut Broadleaf", "strength": "Full", "price": 18.50, "availability": "Limited"},
-                {"company": companies[3], "brand": "Liga Privada", "line": "T52", "sku": "DE-T52-001", "size": "6x50 Toro", "wrapper": "Stalk Cut Habano", "strength": "Full", "price": 17.00, "availability": "In Stock"},
-                {"company": companies[3], "brand": "Undercrown", "line": "Shade", "sku": "DE-UCS-001", "size": "6x50 Toro", "wrapper": "Connecticut Shade", "strength": "Mild-Medium", "price": 9.00, "availability": "In Stock"},
-                # My Father
-                {"company": companies[4], "brand": "My Father", "line": "Le Bijou 1922", "sku": "MF-LB-001", "size": "6.5x52 Torpedo", "wrapper": "Oscuro", "strength": "Full", "price": 16.50, "availability": "In Stock"},
-                {"company": companies[4], "brand": "My Father", "line": "Flor de las Antillas", "sku": "MF-FLA-001", "size": "6.5x52 Toro Gordo", "wrapper": "Sun Grown", "strength": "Medium-Full", "price": 10.50, "availability": "In Stock"},
-            ]
-            products = []
-            for pd in products_data:
-                comp = pd.pop("company")
-                p = Product(company_id=comp.id, **pd)
-                s.add(p)
-                products.append(p)
-            s.flush()
-
-            # Clients
-            clients_data = [
-                {"first_name": "Anthony", "last_name": "Marconi", "company": "Marconi's Fine Tobaccos", "email": "tony@marconistobacco.com", "phone": "212-555-1001", "city": "New York", "state": "NY", "tags": "premium,loyal", "preferred_brands": "Padron,Arturo Fuente", "credit_limit": 25000, "payment_terms": "Net 30"},
-                {"first_name": "Sarah", "last_name": "Chen", "company": "The Smoke Room", "email": "sarah@thesmokeroom.com", "phone": "312-555-2002", "city": "Chicago", "state": "IL", "tags": "boutique,growing", "preferred_brands": "Liga Privada,My Father", "credit_limit": 15000, "payment_terms": "Net 15"},
-                {"first_name": "Robert", "last_name": "Hayes", "company": "Hayes Luxury Cigars", "email": "rhayes@hayesluxury.com", "phone": "310-555-3003", "city": "Los Angeles", "state": "CA", "tags": "premium,high-volume", "preferred_brands": "Arturo Fuente,Padron,Oliva", "credit_limit": 50000, "payment_terms": "Net 45"},
-                {"first_name": "Maria", "last_name": "Vasquez", "company": "Casa Vasquez", "email": "maria@casavasquez.com", "phone": "305-555-4004", "city": "Miami", "state": "FL", "tags": "wholesale,new", "preferred_brands": "My Father,Drew Estate", "credit_limit": 10000, "payment_terms": "Net 30"},
-                {"first_name": "James", "last_name": "O'Brien", "company": "Celtic Smoke Shop", "email": "james@celticsmoke.com", "phone": "617-555-5005", "city": "Boston", "state": "MA", "tags": "retail,steady", "preferred_brands": "Oliva,Undercrown", "credit_limit": 20000, "payment_terms": "Net 30"},
-                {"first_name": "David", "last_name": "Blackwell", "company": "Blackwell's Lounge", "email": "david@blackwellslounge.com", "phone": "404-555-6006", "city": "Atlanta", "state": "GA", "tags": "lounge,premium", "preferred_brands": "Padron,Liga Privada", "credit_limit": 35000, "payment_terms": "Net 30"},
-            ]
-            clients = []
-            for cd in clients_data:
-                c = Client(**cd)
-                s.add(c)
-                clients.append(c)
-            s.flush()
-
-            # Communications
-            comm_types = ["Email", "Call", "Meeting", "Note"]
-            comm_subjects = [
-                ("Email", "Follow-up on recent order", "Touched base regarding their latest shipment."),
-                ("Call", "Pricing discussion", "Discussed volume pricing for Q3 orders."),
-                ("Meeting", "Product tasting event", "Met at trade show to review new lines."),
-                ("Note", "Credit review", "Reviewed account standing - all current."),
-                ("Email", "New product announcement", "Sent catalog of new arrivals for the season."),
-                ("Call", "Order status inquiry", "Client called to check on pending delivery."),
-            ]
-            for i, client in enumerate(clients):
-                for j in range(random.randint(2, 4)):
-                    ct, subj, body = comm_subjects[(i + j) % len(comm_subjects)]
-                    comm = Communication(
-                        client_id=client.id,
-                        comm_type=ct,
-                        subject=subj,
-                        body=body,
-                        timestamp=datetime.now() - timedelta(days=random.randint(1, 90))
-                    )
-                    s.add(comm)
-
-            # Orders
-            statuses = ["Completed", "Completed", "Completed", "Pending", "Shipped"]
-            for i, client in enumerate(clients):
-                for j in range(random.randint(1, 3)):
-                    order_date = date.today() - timedelta(days=random.randint(5, 120))
-                    order = Order(
-                        client_id=client.id,
-                        order_date=order_date,
-                        status=random.choice(statuses),
-                        notes=""
-                    )
-                    s.add(order)
-                    s.flush()
-
-                    subtotal = 0.0
-                    num_items = random.randint(1, 4)
-                    chosen = random.sample(products, min(num_items, len(products)))
-                    for prod in chosen:
-                        qty = random.randint(5, 50)
-                        unit = prod.price
-                        lt = round(qty * unit, 2)
-                        subtotal += lt
-                        item = OrderItem(
-                            order_id=order.id,
-                            product_id=prod.id,
-                            quantity=qty,
-                            unit_price=unit,
-                            line_total=lt
-                        )
-                        s.add(item)
-
-                    tax = round(subtotal * 0.07, 2)
-                    order.subtotal = round(subtotal, 2)
-                    order.tax = tax
-                    order.total = round(subtotal + tax, 2)
-
-            s.commit()
-        except Exception:
-            s.rollback()
-            raise
-        finally:
-            s.close()
-        self.set_setting("app.seeded", "1")
