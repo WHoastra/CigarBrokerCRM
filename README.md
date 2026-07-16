@@ -25,6 +25,8 @@ No installation needed. Sample data is created on first launch.
 - **Reports** — Plus sales by client, top products, top companies, revenue over time, aging receivables, order status summary. Charts + CSV export.
 - **Dashboard** — Command center: money cards (unpaid invoices, gross/net YTD), gross-vs-net trend chart, order-status donut, mini calendar, next-7-days agenda.
 - **Settings** — Company letterhead + license #, tax rate, invoice footer, reports folder.
+- **Config transfer** — Settings > Export/Import Config: your whole setup (logo included) in one portable JSON file for moving to another computer.
+- **Backup / Restore** — File > Backup Database (Ctrl+B) and File > Restore Database to move or recover your data.
 
 ## Keyboard Shortcuts
 
@@ -39,7 +41,9 @@ No installation needed. Sample data is created on first launch.
 
 ## Data Storage
 
-All data is stored locally in `~/.cigarbrokercrm/cigarbroker.db` (SQLite). Use File > Backup Database to create backups.
+All data is stored locally in `~/.cigarbrokercrm/cigarbroker.db` (SQLite) and persists between launches. Use File > Backup Database to create backups and File > Restore Database to load one.
+
+**Moving to a new computer:** copy `CigarBrokerCRM.exe` over, then on the old machine do Settings > Export Config and File > Backup Database; on the new machine do Settings > Import Config and File > Restore Database.
 
 ## Development
 
