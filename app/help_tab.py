@@ -58,9 +58,9 @@ and config export/import.</p>
 If a company's commission % isn't set, its net reports as $0 — set it in Companies.</p>
 
 <h2 style="color:{GOLD};">Saving &amp; moving your setup</h2>
-<p><b>File &gt; Save Config (Ctrl+S)</b> — saves all settings over your latest config file
-(asks where the first time). <b>Settings &gt; Export / Import Config</b> does the same with
-an explicit file choice.</p>
+<p><b>File &gt; Save Config (Ctrl+S)</b> — instantly overwrites your config file, no dialog.
+By default it lives at <code>~/.cigarbrokercrm/cigarbrokercrm-config.json</code>; if you've
+used <b>Settings &gt; Export / Import Config</b>, Save targets that file instead.</p>
 <p><b>File &gt; Backup Database (Ctrl+B)</b> — copies your whole database (clients, orders,
 everything) to a file. <b>File &gt; Restore Database</b> loads one back.</p>
 <p><b>Moving to a new computer:</b> on the old machine, Save Config + Backup Database.

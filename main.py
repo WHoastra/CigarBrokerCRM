@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QAction, QFont, QShortcut, QKeySequence, QIcon
 
-from app.database import DatabaseManager, Client, Order, Company, Product
+from app.database import DatabaseManager, Client, Order, Company, Product, DB_DIR
 from app.theme import DARK_THEME
 from app.clients_tab import ClientsTab
 from app.companies_tab import CompaniesTab
@@ -379,14 +379,11 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Backup Error", str(e))
 
     def save_config(self):
-        """Save all settings over the latest config file (the one last saved,
-        exported, or imported). Asks for a location only the first time."""
-        path = self.db.get_setting("config.path")
-        if not path:
-            path, _ = QFileDialog.getSaveFileName(
-                self, "Save Config", "cigarbrokercrm-config.json", "Config Files (*.json)")
-            if not path:
-                return
+        """Save all settings over the latest config file — no dialog, ever.
+        Uses the last file touched by Export/Import Config; before any of
+        those exist, a fixed default in the app's data folder."""
+        path = (self.db.get_setting("config.path")
+                or os.path.join(DB_DIR, "cigarbrokercrm-config.json"))
         try:
             self.db.export_config(path)
             self.db.set_setting("config.path", path)
